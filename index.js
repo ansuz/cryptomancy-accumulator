@@ -148,53 +148,14 @@ genkeys.sync = function (source) {
 // one uses the private keys
 // one uses only the public key (N)
 
-// given all the same information, they should equivalent
+// given all the same information, they should be equivalent
 
-Acc.secretly = function (keys, items, cb) {
+// synchronous functionality present in either flavour of 'secretly'
+var _secretly = function (keys, Primes) {
     var N = Format.encodeBigInt(keys.N);
     var Totient = Format.encodeBigInt(keys.Totient);
-
-    var Primes = [];
-    nThen(function (w) {
-        items.forEach(function (item) {
-            _hashToPrime(item, w(function (err, p) {
-                // FIXME could return multiple times
-                // implement Util.once
-                if (err) { w.abort(); return void cb(err); }
-                Primes[i] = p;
-            }));
-        })
-    }).nThen(function (w) {
-        // TODO abstract this into a subroutine and use it
-        // for sync and async flavours
-        var exp = bigOne.clone();
-
-        Primes.forEach(function (prime) {
-            exp = exp.multiply(prime);
-            exp = exp.mod(Totient);
-        });
-        var acc = G.modPow(exp, N);
-
-        var Witnesses = Primes.map(function (prime, i) {
-            var inv = prime.modInverse(Totient).multiply(exp).mod(Totient);
-            return G.modPow(inv, N);
-        });
-        cb(void 0, {
-            acc: Format.decodeBigInt(acc),
-            primes: Primes.map(Format.decodeBigInt),
-            witnesses: Witnesses.map(Format.decodeBigInt),
-        });
-    });
-};
-
-Acc.secretly.sync = function (keys, items) {
-    var N = Format.encodeBigInt(keys.N);
-    var Totient = Format.encodeBigInt(keys.Totient);
-
-    var Primes = items.map(_hashToPrime.sync);
 
     var exp = bigOne.clone();
-
     Primes.forEach(function (prime) {
         exp = exp.multiply(prime);
         exp = exp.mod(Totient);
@@ -212,8 +173,7 @@ Acc.secretly.sync = function (keys, items) {
     };
 };
 
-Acc.publicly = function (keys, items, cb) {
-    var N = Format.encodeBigInt(keys.N);
+Acc.secretly = function (keys, items, cb) {
     var Primes = [];
     nThen(function (w) {
         items.forEach(function (item, i) {
@@ -225,35 +185,22 @@ Acc.publicly = function (keys, items, cb) {
             }));
         });
     }).nThen(function (w) {
-        var acc = G;
-        Primes.forEach(function (prime) {
-            acc = acc.modPow(prime, N);
-        });
-        Witnesses = Primes.map(function (_, i) {
-            var witness = G;
-            Primes.forEach(function (prime, j) {
-                if (j === i) { return; }
-                witness = witness.modPow(prime, N);
-            });
-            return witness;
-        });
-        return {
-            acc: Format.decodeBigInt(acc),
-            primes: Primes.map(Format.decodeBigInt),
-            witnesses: Witnesses.map(Format.decodeBigInt),
-        };
+        cb(void 0, _secretly(keys, Primes));
     });
 };
 
-Acc.publicly.sync = function (keys, items) {
-    var N = Format.encodeBigInt(keys.N);
-
+Acc.secretly.sync = function (keys, items) {
     var Primes = items.map(_hashToPrime.sync);
+    return _secretly(keys, Primes);
+};
+
+// synchronous functionality present in either flavour of 'publicly'
+var _publicly = function (keys, Primes) {
+    var N = Format.encodeBigInt(keys.N);
     var acc = G;
     Primes.forEach(function (prime) {
         acc = acc.modPow(prime, N);
     });
-
     Witnesses = Primes.map(function (_, i) {
         var witness = G;
         Primes.forEach(function (prime, j) {
@@ -262,7 +209,6 @@ Acc.publicly.sync = function (keys, items) {
         });
         return witness;
     });
-
     return {
         acc: Format.decodeBigInt(acc),
         primes: Primes.map(Format.decodeBigInt),
@@ -270,26 +216,45 @@ Acc.publicly.sync = function (keys, items) {
     };
 };
 
-Acc.verify = function (keys, acc, u8_witness, item, cb) {
+Acc.publicly = function (keys, items, cb) {
+    var Primes = [];
+    nThen(function (w) {
+        items.forEach(function (item, i) {
+            _hashToPrime(item, w(function (err, p) {
+                // FIXME could return multiple times
+                // implement Util.once
+                if (err) { w.abort(); return void cb(err); }
+                Primes[i] = p;
+            }));
+        });
+    }).nThen(function (w) {
+        cb(void 0, _publicly(keys, Primes));
+    });
+};
+
+Acc.publicly.sync = function (keys, items) {
+    var Primes = items.map(_hashToPrime.sync);
+    return _publicly(keys, Primes);
+};
+
+var _verify = function (keys, acc, u8_witness, R) {
     var N = Format.encodeBigInt(keys.N);
     var C = Format.encodeBigInt(acc);
     var S = Format.encodeBigInt(u8_witness);
 
+    var U = S.modPow(R, N);
+    return U.compareTo(C) === 0;
+};
+
+Acc.verify = function (keys, acc, u8_witness, item, cb) {
     _hashToPrime(item, function (err, R) {
         if (err) { return void cb(err); }
-        var U = S.modPow(R, N);
-        cb(void 0, U.compareTo(C) === 0);
+        cb(void 0, _verify(keys, acc, u8_witness, R));
     });
 };
 
 Acc.verify.sync = function (keys, acc, u8_witness, item) {
-    var N = Format.encodeBigInt(keys.N);
-    var C = Format.encodeBigInt(acc);
-    var S = Format.encodeBigInt(u8_witness);
-
     var R = _hashToPrime.sync(item);
-    var U = S.modPow(R, N);
-
-    return U.compareTo(C) === 0;
+    return _verify(keys, acc, u8_witness, R);
 };
 
