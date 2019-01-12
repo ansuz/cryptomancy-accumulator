@@ -5,6 +5,7 @@
 var Format = require("cryptomancy-format");
 var Prime = require("cryptomancy-prime");
 var Source = require("cryptomancy-source");
+var Util = require("cryptomancy-util");
 var nThen = require("nthen");
 var bigint = require("jsbn").BigInteger;
 
@@ -173,18 +174,17 @@ var _secretly = function (keys, Primes) {
 };
 
 Acc.secretly = function (keys, items, cb) {
+    var CB = Util.once(cb);
     var Primes = [];
     nThen(function (w) {
         items.forEach(function (item, i) {
             _hashToPrime(item, w(function (err, p) {
-                // FIXME could return multiple times
-                // implement Util.once
-                if (err) { w.abort(); return void cb(err); }
+                if (err) { w.abort(); return void CB(err); }
                 Primes[i] = p;
             }));
         });
     }).nThen(function () {
-        cb(void 0, _secretly(keys, Primes));
+        CB(void 0, _secretly(keys, Primes));
     });
 };
 
@@ -216,18 +216,17 @@ var _publicly = function (keys, Primes) {
 };
 
 Acc.publicly = function (keys, items, cb) {
+    var CB = Util.once(cb);
     var Primes = [];
     nThen(function (w) {
         items.forEach(function (item, i) {
             _hashToPrime(item, w(function (err, p) {
-                // FIXME could return multiple times
-                // implement Util.once
-                if (err) { w.abort(); return void cb(err); }
+                if (err) { w.abort(); return void CB(err); }
                 Primes[i] = p;
             }));
         });
     }).nThen(function () {
-        cb(void 0, _publicly(keys, Primes));
+        CB(void 0, _publicly(keys, Primes));
     });
 };
 
