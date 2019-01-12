@@ -14,7 +14,6 @@ var PRIME_BITS = Math.pow(2, EXPONENT); //1024; // 1024 is 2^10
 var G = new bigint('' + (Math.pow(2, EXPONENT) + 1)); //'65537'); // 2^10+1
 
 var bigOne = bigint.ONE;
-var bigTwo = new bigint('2');
 
 var Acc = module.exports;
 
@@ -38,7 +37,7 @@ var _hashToPrime = function (U8, cb) {
     // use the global setting for the number of bits (1024)
     Prime(source, PRIME_BITS, function (err, bi) {
         if (err) { return void cb(err); }
-        if (!bi instanceof bigint) { return void cb('INVALID_TYPE_RETURNED'); }
+        if ((bi instanceof bigint) !== true) { return void cb('INVALID_TYPE_RETURNED'); }
         cb(void 0, bi);
     });
 };
@@ -129,9 +128,9 @@ var genkeys = Acc.genkeys = function (source, cb) {
             P = pair.P;
             Q = pair.Q;
         }));
-    }).nThen(function (w) {
+    }).nThen(function () {
         var keys = usePair(P, Q);
-        if (!keys) { return void genKeys(source, cb); }
+        if (!keys) { return void genkeys(source, cb); }
         cb(void 0, keys);
     });
 };
@@ -140,7 +139,7 @@ var genkeys = Acc.genkeys = function (source, cb) {
 genkeys.sync = function (source) {
     var pair = genPair.sync(source);
     var keys = usePair(pair.P, pair.Q);
-    if (!keys) { return genKeys.sync(source); }
+    if (!keys) { return genkeys.sync(source); }
     return keys;
 };
 
@@ -162,7 +161,7 @@ var _secretly = function (keys, Primes) {
     });
     var acc = G.modPow(exp, N);
 
-    var Witnesses = Primes.map(function (prime, i) {
+    var Witnesses = Primes.map(function (prime) {
         var inv = prime.modInverse(Totient).multiply(exp).mod(Totient);
         return G.modPow(inv, N);
     });
@@ -184,7 +183,7 @@ Acc.secretly = function (keys, items, cb) {
                 Primes[i] = p;
             }));
         });
-    }).nThen(function (w) {
+    }).nThen(function () {
         cb(void 0, _secretly(keys, Primes));
     });
 };
@@ -201,7 +200,7 @@ var _publicly = function (keys, Primes) {
     Primes.forEach(function (prime) {
         acc = acc.modPow(prime, N);
     });
-    Witnesses = Primes.map(function (_, i) {
+    var Witnesses = Primes.map(function (_, i) {
         var witness = G;
         Primes.forEach(function (prime, j) {
             if (j === i) { return; }
@@ -227,7 +226,7 @@ Acc.publicly = function (keys, items, cb) {
                 Primes[i] = p;
             }));
         });
-    }).nThen(function (w) {
+    }).nThen(function () {
         cb(void 0, _publicly(keys, Primes));
     });
 };
@@ -246,7 +245,8 @@ var _verify = function (keys, acc, u8_witness, R) {
     return U.compareTo(C) === 0;
 };
 
-Acc.verify = function (keys, acc, u8_witness, item, cb) {
+// FIXME too many parameters
+Acc.verify = function (keys, acc, u8_witness, item, cb) { // jshint ignore:line
     _hashToPrime(item, function (err, R) {
         if (err) { return void cb(err); }
         cb(void 0, _verify(keys, acc, u8_witness, R));

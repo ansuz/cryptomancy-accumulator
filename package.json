@@ -4,7 +4,8 @@
   "description": "a implementation of a cryptographic accumulator in for the cryptomancy suite",
   "main": "index.js",
   "scripts": {
-    "test": "node test.js"
+    "test": "node test.js",
+    "lint": "jshint --config .jshintrc --exclude-path .jshintignore ."
   },
   "keywords": [
     "cryptomancy"

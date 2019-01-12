@@ -4,7 +4,17 @@ var Acc = require(".");
 var nThen = require("nthen");
 var assert = require("assert");
 
-var source = Source.bytes.secure();
+var randomTokens = function (n) {
+    var junk = [];
+
+    var secure = Source.bytes.secure();
+    var x = n;
+
+    // generate some junk which should not be found in the accumulator
+    while (x--) { junk.push(secure(32)); }
+
+    return junk;
+};
 
 nThen(function (w) {
     // check consistency of sync and async flavours of prime generation
@@ -69,7 +79,7 @@ nThen(function (w) {
             if (err) { throw new Error(err); }
             result = res;
         }));
-    }).nThen(function (w) {
+    }).nThen(function () {
         Acc.verify(
             keys,
             result.acc,
@@ -109,13 +119,7 @@ nThen(function (w) {
         assert.equal(pubWit, privWit);
     });
 
-    var junk = [];
-
-    var secure = Source.bytes.secure();
-    var x = 100;
-
-    // generate some junk which should not be found in the accumulator
-    while (x--) { junk.push(secure(32)); }
+    var junk = randomTokens(100);
 
     privResult.witnesses.forEach(function (witness, i) {
         assert(Acc.verify.sync(keys, privResult.acc, witness, u8_items[i]));
