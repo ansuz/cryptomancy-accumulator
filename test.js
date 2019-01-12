@@ -74,12 +74,8 @@ nThen(function (w) {
             if (err) { throw new Error(err); }
             keys = k;
         }));
-    }).nThen(function (w) {
-        Acc.publicly.sync(keys, u8_items, w(function (err, res) {
-            if (err) { throw new Error(err); }
-            result = res;
-        }));
     }).nThen(function () {
+        result = Acc.publicly.sync(keys, u8_items);
         Acc.verify(
             keys,
             result.acc,
@@ -106,20 +102,20 @@ nThen(function (w) {
     ];
     var u8_items = items.map(Format.decodeUTF8);
     var pubResult = Acc.publicly.sync(keys, u8_items);
-    var privResult = Acc.privately.sync(keys, u8_items);
+    var privResult = Acc.secretly.sync(keys, u8_items);
 
     var pubAcc = Format.encode64(pubResult.acc);
-    var privAcc = Format.encode64(privAcc.acc);
+    var privAcc = Format.encode64(privResult.acc);
 
     assert.equal(pubAcc, privAcc);
 
-    pubAcc.witnesses.forEach(function (witness, i) {
+    pubResult.witnesses.forEach(function (witness, i) {
         var pubWit = Format.encode64(witness);
         var privWit = Format.encode64(privResult.witnesses[i]);
         assert.equal(pubWit, privWit);
     });
 
-    var junk = randomTokens(100);
+    var junk = randomTokens(2 /*100*/);
 
     privResult.witnesses.forEach(function (witness, i) {
         assert(Acc.verify.sync(keys, privResult.acc, witness, u8_items[i]));
